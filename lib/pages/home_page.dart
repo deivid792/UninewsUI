@@ -1,36 +1,83 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/app_colors.dart';
-import 'auth/login_page.dart';
-import 'auth/register_page.dart';
+import '../services/auth_service.dart';
 import 'events_page.dart';
-import 'news_page.dart'; 
-import 'news_detail_page.dart'; // IMPORTANTE: Importamos a tela de detalhes da notícia
+import 'news_page.dart';
+import 'news_detail_page.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  final authService = AuthService();
+  late Stream<AuthState> authStream;
+
+  @override
+  void initState() {
+    super.initState();
+    authStream = authService.authStateChanges;
+  }
 
   // Lista simulada das notícias mais recentes (mostrando as lançadas em 2026)
   final List<Map<String, String>> _recentNews = const [
     {
       'title': 'Edital de monitoria 2026.1',
-      'content': 'Estão abertas as inscrições para o programa de monitoria acadêmica do semestre 2026.1. Os alunos interessados devem preencher o formulário oficial anexado ao portal do aluno e cumprir os pré-requisitos de média global mínima de 7.0 na disciplina pretendida.',
+      'content':
+          'Estão abertas as inscrições para o programa de monitoria acadêmica do semestre 2026.1. Os alunos interessados devem preencher o formulário oficial anexado ao portal do aluno e cumprir os pré-requisitos de média global mínima de 7.0 na disciplina pretendida.',
       'date': '15 de Março de 2026',
-      'department': 'Coordenação Geral de Graduação'
+      'department': 'Coordenação Geral de Graduação',
     },
     {
       'title': 'Resultado da primeira chamada do FIES',
-      'content': 'O setor de bolsas e financiamentos divulgou a lista dos pré-selecionados na primeira chamada do FIES. Os candidatos aprovados devem comparecer ao bloco A para validação da documentação física até a próxima sexta-feira.',
+      'content':
+          'O setor de bolsas e financiamentos divulgou a lista dos pré-selecionados na primeira chamada do FIES. Os candidatos aprovados devem comparecer ao bloco A para validação da documentação física até a próxima sexta-feira.',
       'date': '12 de Março de 2026',
-      'department': 'Setor de Bolsas / ProUni / FIES'
+      'department': 'Setor de Bolsas / ProUni / FIES',
     },
   ];
+
+  Future<void> _logout() async {
+    try {
+      await authService.signOut();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Desconectado com sucesso'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao desconectar: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('UniNews', style: GoogleFonts.openSans(color: AppColors.primary, fontWeight: FontWeight.bold)),
+        title: Text(
+          'UniNews',
+          style: GoogleFonts.openSans(
+            color: AppColors.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.primary),
@@ -44,50 +91,145 @@ class HomePage extends StatelessWidget {
               DrawerHeader(
                 decoration: const BoxDecoration(color: AppColors.primary),
                 child: Center(
-                  child: Image.network(
-                    'https://via.placeholder.com/150x50?text=UniNews',
-                    color: Colors.white,
-                    height: 50,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.network(
+                        'https://via.placeholder.com/150x50?text=UniNews',
+                        color: Colors.white,
+                        height: 50,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.newspaper,
+                            size: 50,
+                            color: Colors.white,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      if (authService.isAuthenticated)
+                        Text(
+                          authService.currentUser?.email ?? 'Usuário',
+                          style: GoogleFonts.openSans(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
                   ),
                 ),
               ),
               ListTile(
                 leading: const Icon(Icons.home_outlined, color: Colors.white),
-                title: Text('Página Inicial', style: GoogleFonts.openSans(color: Colors.white)),
+                title: Text(
+                  'Página Inicial',
+                  style: GoogleFonts.openSans(color: Colors.white),
+                ),
                 onTap: () => Navigator.pop(context),
               ),
               ListTile(
-                leading: const Icon(Icons.event_note_outlined, color: Colors.white),
-                title: Text('Eventos', style: GoogleFonts.openSans(color: Colors.white)),
+                leading: const Icon(
+                  Icons.event_note_outlined,
+                  color: Colors.white,
+                ),
+                title: Text(
+                  'Eventos',
+                  style: GoogleFonts.openSans(color: Colors.white),
+                ),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsPage()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EventsPage()),
+                  );
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.newspaper_outlined, color: Colors.white),
-                title: Text('Notícias', style: GoogleFonts.openSans(color: Colors.white)),
+                leading: const Icon(
+                  Icons.newspaper_outlined,
+                  color: Colors.white,
+                ),
+                title: Text(
+                  'Notícias',
+                  style: GoogleFonts.openSans(color: Colors.white),
+                ),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const NewsPage()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NewsPage()),
+                  );
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.login_outlined, color: Colors.white),
-                title: Text('Login', style: GoogleFonts.openSans(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.person_add_alt_outlined, color: Colors.white),
-                title: Text('Cadastro', style: GoogleFonts.openSans(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterPage()));
-                },
-              ),
+              const Divider(color: Colors.white24, height: 20),
+              // Se o usuário NÃO está autenticado, mostra login e cadastro
+              if (!authService.isAuthenticated) ...[
+                ListTile(
+                  leading: const Icon(
+                    Icons.login_outlined,
+                    color: Colors.white,
+                  ),
+                  title: Text(
+                    'Login',
+                    style: GoogleFonts.openSans(color: Colors.white),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushReplacementNamed(context, '/login');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.person_add_alt_outlined,
+                    color: Colors.white,
+                  ),
+                  title: Text(
+                    'Cadastro',
+                    style: GoogleFonts.openSans(color: Colors.white),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushReplacementNamed(context, '/register');
+                  },
+                ),
+              ] else ...[
+                // Se o usuário está autenticado, mostra logout
+                ListTile(
+                  leading: const Icon(
+                    Icons.account_circle_outlined,
+                    color: Colors.white,
+                  ),
+                  title: Text(
+                    'Perfil',
+                    style: GoogleFonts.openSans(color: Colors.white),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    // TODO: Implementar página de perfil
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Página de perfil em desenvolvimento'),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.logout_outlined,
+                    color: Colors.white,
+                  ),
+                  title: Text(
+                    'Sair',
+                    style: GoogleFonts.openSans(color: Colors.white),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _logout();
+                  },
+                ),
+              ],
             ],
           ),
         ),
@@ -110,17 +252,33 @@ class HomePage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Bem vindo ao UniNews", style: GoogleFonts.openSans(fontSize: 24, fontWeight: FontWeight.bold)),
-          const Text("Fique por dentro dos eventos e avisos da sua universidade"),
+          Text(
+            "Bem vindo ao UniNews",
+            style: GoogleFonts.openSans(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Text(
+            "Fique por dentro dos eventos e avisos da sua universidade",
+          ),
           const SizedBox(height: 15),
           ElevatedButton(
             onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const EventsPage()));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EventsPage()),
+              );
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text("Ver eventos", style: TextStyle(color: Colors.white)),
+            child: const Text(
+              "Ver eventos",
+              style: TextStyle(color: Colors.white),
+            ),
           ),
-          const Center(child: Icon(Icons.newspaper, size: 100, color: AppColors.secondary)),
+          const Center(
+            child: Icon(Icons.newspaper, size: 100, color: AppColors.secondary),
+          ),
         ],
       ),
     );
@@ -141,22 +299,38 @@ class HomePage extends StatelessWidget {
             children: [
               Text(
                 "Últimas Notícias",
-                style: GoogleFonts.openSans(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                style: GoogleFonts.openSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const NewsPage()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NewsPage()),
+                  );
                 },
-                child: const Text("Ver todas", style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  "Ver todas",
+                  style: TextStyle(
+                    color: AppColors.secondary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 5),
           ListView.separated(
-            shrinkWrap: true, // Permite que a lista fique dentro do SingleChildScrollView
-            physics: const NeverScrollableScrollPhysics(), // Desativa a rolagem interna da lista
+            shrinkWrap:
+                true, // Permite que a lista fique dentro do SingleChildScrollView
+            physics:
+                const NeverScrollableScrollPhysics(), // Desativa a rolagem interna da lista
             itemCount: _recentNews.length,
-            separatorBuilder: (context, index) => const Divider(color: AppColors.accent),
+            separatorBuilder: (context, index) =>
+                const Divider(color: AppColors.accent),
             itemBuilder: (context, index) {
               final news = _recentNews[index];
               return ListTile(
@@ -169,7 +343,11 @@ class HomePage extends StatelessWidget {
                     color: Colors.black87,
                   ),
                 ),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.primary),
+                trailing: const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: AppColors.primary,
+                ),
                 onTap: () {
                   // Redireciona direto para a tela de detalhes daquela notícia
                   Navigator.push(
@@ -195,10 +373,21 @@ class HomePage extends StatelessWidget {
         children: [
           const Divider(),
           const SizedBox(height: 10),
-          const Text("Sobre o UniNews", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text(
+            "Sobre o UniNews",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 20),
-          _aboutItem(Icons.notifications_active, "Fique atualizado", "Receba notificações sobre eventos importantes."),
-          _aboutItem(Icons.event, "Participe de eventos", "Descubra palestras e workshops."),
+          _aboutItem(
+            Icons.notifications_active,
+            "Fique atualizado",
+            "Receba notificações sobre eventos importantes.",
+          ),
+          _aboutItem(
+            Icons.event,
+            "Participe de eventos",
+            "Descubra palestras e workshops.",
+          ),
         ],
       ),
     );
